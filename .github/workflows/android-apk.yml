@@ -1,0 +1,57 @@
+name: Android APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: {}
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Enable Corepack and install dependencies
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Build Angular PWA
+        run: pnpm run build:frontend:pwa
+
+      - name: Install Capacitor tooling (optional)
+        run: |
+          pnpm add -D @capacitor/cli @capacitor/android || echo "Capacitor already present or not needed"
+          npx cap sync android || echo "cap sync android failed (ensure Capacitor + android platform are initialized)"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build release APK
+        run: |
+          if [ -d "android" ]; then
+            cd android
+            ./gradlew assembleRelease
+          else
+            echo "Android project directory ./android not found. Initialize Capacitor Android project first."
+            exit 1
+          fi
+
+      - name: Upload unsigned APK artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iptvnator-android-unsigned
+          path: android/app/build/outputs/apk/release/*.apk
