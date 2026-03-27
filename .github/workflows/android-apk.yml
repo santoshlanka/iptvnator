@@ -49,9 +49,48 @@ jobs:
             exit 1
           fi
 
-      - name: Upload unsigned APK artifact
+      - name: Decode signing keystore
+        if: success()
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -z "${ANDROID_KEYSTORE_B64}" ]; then
+            echo "ANDROID_KEYSTORE_B64 secret is not set. Configure signing secrets in the repository settings."
+            exit 1
+          fi
+          echo "$ANDROID_KEYSTORE_B64" | base64 -d > android/iptvnator-release.keystore
+
+      - name: Sign APK
+        if: success()
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_ALIAS_PASSWORD: ${{ secrets.ANDROID_KEY_ALIAS_PASSWORD }}
+        run: |
+          if [ -z "${ANDROID_KEYSTORE_PASSWORD}" ] || [ -z "${ANDROID_KEY_ALIAS}" ] || [ -z "${ANDROID_KEY_ALIAS_PASSWORD}" ]; then
+            echo "One or more Android signing secrets are not set (ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_ALIAS_PASSWORD)."
+            exit 1
+          fi
+          APK=$(ls android/app/build/outputs/apk/release/*.apk | head -n 1)
+          if [ ! -f "$APK" ]; then
+            echo "No APK found to sign."
+            exit 1
+          fi
+          APKSIGNER=$(ls /usr/local/lib/android/sdk/build-tools/*/apksigner | head -n 1)
+          if [ ! -x "$APKSIGNER" ]; then
+            echo "apksigner not found in expected build-tools path."
+            exit 1
+          fi
+          "$APKSIGNER" sign \
+            --ks android/iptvnator-release.keystore \
+            --ks-pass pass:${ANDROID_KEYSTORE_PASSWORD} \
+            --ks-key-alias "${ANDROID_KEY_ALIAS}" \
+            --key-pass pass:${ANDROID_KEY_ALIAS_PASSWORD} \
+            "$APK"
+
+      - name: Upload signed APK artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: iptvnator-android-unsigned
+          name: iptvnator-android-signed
           path: android/app/build/outputs/apk/release/*.apk
