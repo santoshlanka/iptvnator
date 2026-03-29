@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { provideM3uWorkspaceRouteSession } from '@iptvnator/playlist/m3u/feature-player';
 
 export const routes: Routes = [
     {
@@ -41,7 +42,32 @@ export const routes: Routes = [
                 redirectTo: 'playlists/:id/all',
             },
             {
+                path: 'playlists/:id/favorites',
+                providers: provideM3uWorkspaceRouteSession(),
+                loadComponent: () =>
+                    import('@iptvnator/playlist/m3u/feature-player').then(
+                        (c) => c.M3uCollectionRouteComponent
+                    ),
+                data: {
+                    mode: 'favorites',
+                    portalType: 'm3u',
+                },
+            },
+            {
+                path: 'playlists/:id/recent',
+                providers: provideM3uWorkspaceRouteSession(),
+                loadComponent: () =>
+                    import('@iptvnator/playlist/m3u/feature-player').then(
+                        (c) => c.M3uCollectionRouteComponent
+                    ),
+                data: {
+                    mode: 'recent',
+                    portalType: 'm3u',
+                },
+            },
+            {
                 path: 'playlists/:id/:view',
+                providers: provideM3uWorkspaceRouteSession(),
                 loadComponent: () =>
                     import('@iptvnator/playlist/m3u/feature-player').then(
                         (c) => c.VideoPlayerComponent
@@ -51,6 +77,17 @@ export const routes: Routes = [
                 path: 'global-favorites',
                 data: {
                     mode: 'favorites',
+                    defaultScope: 'all',
+                },
+                loadComponent: () =>
+                    import('@iptvnator/portal/shared/ui').then(
+                        (c) => c.UnifiedCollectionPageComponent
+                    ),
+            },
+            {
+                path: 'global-recent',
+                data: {
+                    mode: 'recent',
                     defaultScope: 'all',
                 },
                 loadComponent: () =>
